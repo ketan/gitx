@@ -12,12 +12,12 @@ buildAction () {
     echo "Building libgit2..."
 	if [[ -d .git ]]
 	then
-		export PATH=$PATH:$HOME/bin:$HOME/local/bin:/sw/bin:/opt/local/bin:`"$TARGET_BUILD_DIR"/gitx --git-path`
+		export PATH=$PATH:$HOME/bin:$HOME/local/bin:/sw/bin:/opt/local/bin:
 		git submodule init
 		git submodule update
 		cd libgit2
 		rm -f libgit2.a
-		make CFLAGS="-arch i386 -arch ppc -arch x86_64"
+		make CFLAGS="-arch x86_64"
 		ranlib libgit2.a
 	else
 		echo "error: Not a git repository."
