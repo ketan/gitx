@@ -12,7 +12,7 @@
 #import "PBWebChangesController.h"
 #import "PBGitIndex.h"
 #import "PBNiceSplitView.h"
-
+#import "PBGitAuthorDataSource.h"
 
 #define kCommitSplitViewPositionDefault @"Commit SplitView Position"
 
@@ -49,7 +49,7 @@
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(amendCommit:) name:PBGitIndexAmendMessageAvailable object:index];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(indexChanged:) name:PBGitIndexIndexUpdated object:index];
 	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(indexOperationFailed:) name:PBGitIndexOperationFailed object:index];
-
+    
 	return self;
 }
 
@@ -73,6 +73,8 @@
 
 	[commitSplitView setHidden:YES];
 	[self performSelector:@selector(restoreCommitSplitViewPositiion) withObject:nil afterDelay:0];
+
+    [commitAuthor setDataSource: [[PBGitAuthorDataSource alloc] initWithRepository:repository]];
 }
 
 - (void)closeView
@@ -110,11 +112,22 @@
 
 	// Reload refs (in case HEAD changed)
 	[repository reloadRefs];
+    [commitAuthor reloadData];
+}
+
+- (void) reloadAuthors
+{
+    [commitAuthor reloadData];
 }
 
 - (void) updateView
 {
 	[self refresh:nil];
+    [self reloadAuthors];
+}
+
+- (IBAction) setAuthor:(id)sender {
+    
 }
 
 - (IBAction) commit:(id) sender
@@ -151,7 +164,8 @@
 	self.isBusy = YES;
 	[commitMessageView setEditable:NO];
 
-	[index commitWithMessage:commitMessage andVerify:doVerify];
+    NSString *author = [commitAuthor objectValue];
+    [index commitWithMessage:commitMessage andAuthor:author andVerify:doVerify];
 }
 
 
@@ -171,6 +185,7 @@
 {
 	[commitMessageView setEditable:YES];
 	[commitMessageView setString:@""];
+    [commitAuthor setStringValue:@""];
 	[webController setStateMessage:[NSString stringWithFormat:[[notification userInfo] objectForKey:@"description"]]];
 }	
 
@@ -200,7 +215,12 @@
 		return;
 	
 	NSString *message = [[notification userInfo] objectForKey:@"message"];
+    NSString *author = [[notification userInfo] objectForKey:@"author"];
 	commitMessageView.string = message;
+    [self reloadAuthors];
+
+    NSLog(@"|%@|", author);
+    [commitAuthor setStringValue:author];
 }
 
 - (void)indexChanged:(NSNotification *)notification

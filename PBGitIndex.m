@@ -96,19 +96,25 @@ NSString *PBGitIndexOperationFailed = @"PBGitIndexOperationFailed";
 	// in a dictionary. This dictionary will then later be read by [self commit:]
 	NSString *message = [repository outputForCommand:@"cat-file commit HEAD"];
 	NSArray *match = [message substringsMatchingRegularExpression:@"\nauthor ([^\n]*) <([^\n>]*)> ([0-9]+[^\n]*)\n" count:3 options:0 ranges:nil error:nil];
-	if (match)
-		amendEnvironment = [NSDictionary dictionaryWithObjectsAndKeys:[match objectAtIndex:1], @"GIT_AUTHOR_NAME",
+    NSString *author = NULL;
+	if (match){
+        author = [NSString stringWithFormat:@"%@ <%@>", [match objectAtIndex:1], [match objectAtIndex:2]];
+		amendEnvironment = [NSMutableDictionary dictionaryWithObjectsAndKeys:[match objectAtIndex:1], @"GIT_AUTHOR_NAME",
 							[match objectAtIndex:2], @"GIT_AUTHOR_EMAIL",
 							[match objectAtIndex:3], @"GIT_AUTHOR_DATE",
 							nil];
+    }
 
 	// Find the commit message
 	NSRange r = [message rangeOfString:@"\n\n"];
 	if (r.location != NSNotFound) {
 		NSString *commitMessage = [message substringFromIndex:r.location + 2];
+        NSDictionary *userInfo = [NSDictionary dictionaryWithObjects: [NSArray arrayWithObjects: commitMessage, author, nil] 
+                                                             forKeys: [NSArray arrayWithObjects: @"message", @"author", nil]];
+        
 		[[NSNotificationCenter defaultCenter] postNotificationName:PBGitIndexAmendMessageAvailable
 															object: self
-														  userInfo:[NSDictionary dictionaryWithObject:commitMessage forKey:@"message"]];
+														  userInfo: userInfo];
 	}
 	
 }
@@ -146,8 +152,21 @@ NSString *PBGitIndexOperationFailed = @"PBGitIndexOperationFailed";
 	return parent;
 }
 
+- (void) setAuthorInAmendEnvironment: (NSString*) author {
+    if (!amendEnvironment) {
+        amendEnvironment = [[NSMutableDictionary alloc] init];
+    }
+    
+	NSArray *match = [author substringsMatchingRegularExpression:@"\([^\n]*) <([^\n>]*)>" count:2 options:0 ranges:nil error:nil];
+	if (match){
+        [amendEnvironment setObject:[match objectAtIndex:1] forKey:@"GIT_AUTHOR_NAME"];
+        [amendEnvironment setObject:[match objectAtIndex:2] forKey:@"GIT_AUTHOR_EMAIL"];
+    }
+    
+}
+
 // TODO: make Asynchronous
-- (void)commitWithMessage:(NSString *)commitMessage andVerify:(BOOL) doVerify
+- (void)commitWithMessage:(NSString *)commitMessage andAuthor:(NSString*)author andVerify:(BOOL) doVerify
 {
 	NSMutableString *commitSubject = [@"commit: " mutableCopy];
 	NSRange newLine = [commitMessage rangeOfString:@"\n"];
@@ -200,7 +219,7 @@ NSString *PBGitIndexOperationFailed = @"PBGitIndexOperationFailed";
     }
 	
 	commitMessage = [NSString stringWithContentsOfFile:commitMessageFile encoding:NSUTF8StringEncoding error:nil];
-	
+    [self setAuthorInAmendEnvironment: author];
 	NSString *commit = [repository outputForArguments:arguments
 										  inputString:commitMessage
 							   byExtendingEnvironment:amendEnvironment

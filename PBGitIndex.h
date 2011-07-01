@@ -49,7 +49,7 @@ extern NSString *PBGitIndexOperationFailed;
 	NSMutableArray *files;
 
 	NSUInteger refreshStatus;
-	NSDictionary *amendEnvironment;
+	NSMutableDictionary *amendEnvironment;
 	BOOL amend;
 }
 
@@ -67,7 +67,7 @@ extern NSString *PBGitIndexOperationFailed;
 // Refresh the index
 - (void)refresh;
 
-- (void)commitWithMessage:(NSString *)commitMessage andVerify:(BOOL) doVerify;
+- (void)commitWithMessage:(NSString *)commitMessage andAuthor:(NSString*)author andVerify:(BOOL) doVerify;
 
 // Inter-file changes:
 - (BOOL)stageFiles:(NSArray *)stageFiles;
